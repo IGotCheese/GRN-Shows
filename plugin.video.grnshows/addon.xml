@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="plugin.video.grnshows" name="GRN Shows" provider-name="GRN" version="3.2.0">
+    <requires>
+        <import addon="xbmc.python" version="3.0.0"/>
+        <import addon="script.module.requests" version="2.19.1"/>
+        <import addon="script.module.pil" version="1.1.7" optional="true"/>
+        <!-- Required, not optional: the add-on points its scraper module at this
+             and finds no sources without it. The GRN repository carries it so a
+             fresh Kodi can resolve it without adding another repository. -->
+        <import addon="script.module.cocoscrapers"/>
+    </requires>
+    <extension point="xbmc.python.pluginsource" library="resources/lib/grnshows.py">
+        <provides>video</provides>
+    </extension>
+    <extension point="xbmc.service" library="resources/lib/service.py"/>
+    <extension point="xbmc.python.module" library="resources/lib/"/>
+    <extension point="xbmc.addon.metadata">
+        <reuselanguageinvoker>true</reuselanguageinvoker>
+        <summary lang="en">Browse your own media and debrid clouds on the Gamers Revolution Network.</summary>
+        <description lang="en">GRN Shows indexes metadata from TMDb and Trakt and plays back content you already own or have a subscription to. It hosts no media of its own.</description>
+        <platform>all</platform>
+        <disclaimer lang="en">GRN Shows hosts no media and has no affiliation with any content provider. Use only sources and content you are authorized to access.</disclaimer>
+        <license/>
+        <assets>
+            <icon>resources/media/addon_icons/grnshows_icon_01.png</icon>
+            <fanart>resources/media/grnshows_fanart_01.jpg</fanart>
+        </assets>
+        <news>See the Changelog under Tools for the latest changes.</news>
+    </extension>
+</addon>

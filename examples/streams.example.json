@@ -1,0 +1,7 @@
+{
+  "movie:550": [
+    "https://media.example.com/movies/example-1080p.mp4",
+    "magnet:?xt=urn:btih:YOUR_AUTHORIZED_CONTENT_HASH"
+  ],
+  "episode:63056": "smb://media-server/tv/example/season-01/episode-01.mkv"
+}

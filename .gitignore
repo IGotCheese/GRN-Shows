@@ -1,0 +1,37 @@
+# This repository is the GRN Shows Kodi add-on and its repository, nothing else.
+# The same directory on the server also holds other GRN projects, which run from
+# here and so cannot simply be moved; they are excluded instead.
+
+# Build output
+dist/
+repository.grnshows.build/
+__pycache__/
+*.pyc
+
+# Secrets. keys.json holds the TMDb and Trakt credentials that build.py bakes
+# into the published zip; the tree itself only ever carries @@TOKEN@@ markers.
+keys.json
+agent.token
+.kodi-webserver-credentials
+
+# Not part of the Kodi project: the Discord Activity and its server side.
+activity/
+tools/lounge_*
+tools/.lounge_agent_state.json
+tools/bridge.ps1
+tools/install_lounge_agent.ps1
+tools/build_activity.py
+tools/check_activity.py
+tools/build_catalogue.py
+tools/make_art.py
+
+# Not part of the Kodi project: the playgrn website and server hosting config.
+website/
+deploy/
+
+# Upstream archives stay on the server. fenlightam-2.2.03 contains the original
+# author's own TMDb and Trakt keys, and publishing it would republish them.
+reference/
+grn-shows-source.tar.gz
+SHA256SUMS
+README.txt

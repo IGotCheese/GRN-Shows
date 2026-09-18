@@ -128,7 +128,7 @@ def get_icon(image_name, image_folder='icons', image_type='png'):
 	bundled = os.path.join(addon_path(), 'resources', 'media', image_folder, '%s.%s' % (image_name, image_type))
 	if os.path.exists(bundled): return bundled
 	return 'https://raw.githubusercontent.com/%s/%s/main/packages/media/%s/%s.%s' \
-			% (get_property('grnshows.update.username'), get_property('grnshows.update.location'), image_folder, image_name, image_type)
+			% ('IGotCheese', 'GRN-Shows', image_folder, image_name, image_type)
 
 def get_addon_fanart():
 	return get_property('grnshows.default_addon_fanart') or addon_fanart()
@@ -498,7 +498,7 @@ def get_all_icons():
 			results = [i['name'].replace('.png', '') for i in results.json()]
 			return results
 		except: return ['folder.png']
-	username, location = get_property('grnshows.update.username'), get_property('grnshows.update.location')
+	username, location = 'IGotCheese', 'GRN-Shows'
 	return cache_object(_process, 'all_icons', 'foo', False, 168)
 
 def get_all_addon_icons():
@@ -509,7 +509,7 @@ def get_all_addon_icons():
 			results = requests.get('https://api.github.com/repos/%s/%s/contents/packages/addon_icons' % (username, location))
 			return results
 		except: return []
-	username, location = get_property('grnshows.update.username'), get_property('grnshows.update.location')
+	username, location = 'IGotCheese', 'GRN-Shows'
 	return cache_object(_process, 'all_addon_icons', 'foo', True, 168)
 
 def upload_logfile(params):

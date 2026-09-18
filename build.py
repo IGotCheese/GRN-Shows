@@ -134,6 +134,15 @@ def build(base_url, output=None, keys_file=None):
                 archive.write(path, addon_id + '/' + relative.as_posix())
         for asset in element.findall('./extension/assets/*'):
             shutil.copyfile(source / asset.text, destination / Path(asset.text).name)
+        if addon_id == 'plugin.video.grnshows':
+            # The add-on's own updater (Tools, Check For Updates, and the check at
+            # Kodi start) reads these two files next to the ZIPs; see
+            # UPDATER_FIXES in tools/port_fenlight.py.
+            news = element.find('./extension/news')
+            (destination / 'grnshowsam_version').write_text(element.attrib['version'], encoding='utf-8')
+            (destination / 'grnshowsam_changes').write_text(
+                'GRN Shows %s\n\n%s\n' % (element.attrib['version'], (news.text or '').strip() if news is not None else ''),
+                encoding='utf-8')
         links.append('<li><a href="zips/%s/%s">%s</a></li>' % (addon_id, filename, html.escape(element.attrib['name'])))
         if addon_id.startswith('repository.'):
             # Kodi's "Install from zip file" browser opens at the source root. Keeping
@@ -193,7 +202,6 @@ def build(base_url, output=None, keys_file=None):
     (output / 'addons.xml.md5').write_text(hashlib.md5(payload).hexdigest(), encoding='ascii')
     # The human-readable summary is info.html. index.html in every directory
     # is the machine listing Kodi browses; see write_listings().
-    # instead of the file listing it needs to browse the source.
     (output / 'info.html').write_text(
         '<!doctype html><html><head><meta charset="utf-8"><title>GRN Shows</title></head>'
         '<body><h1>GRN Shows</h1><p>Kodi source: %s</p><ul>%s</ul></body></html>'

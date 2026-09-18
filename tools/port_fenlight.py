@@ -277,6 +277,69 @@ def tokenise_credentials(text: str, relative: str) -> tuple:
     return text, changed
 
 
+# The built-in updater checks for a new version at every Kodi start and, with
+# the default "Prompt" action, installs whatever ZIP it finds after one click.
+# Upstream built its address from two user-editable settings naming a GitHub
+# account, and the port pointed them at a 'GRN-Shows' account that nobody owns:
+# whoever registered that name would have been offered as an update to every
+# install. The settings are stored per user, so changing their defaults would
+# leave every existing install still pointing there. The updater now reads the
+# repository we publish, from code, and the settings are removed.
+#
+# What it reads there: grnshowsam_version and grnshowsam_changes, which
+# build.py writes next to the ZIPs, and the directory listing for rollback,
+# which replaces a GitHub contents API call.
+def repository_url(repo_username: str, repo_location: str) -> str:
+    return 'https://%s.github.io/%s/' % (repo_username.lower(), repo_location)
+
+
+UPDATER_FIXES = (
+    ('modules/updater.py', 'import json\n', 'import json\nimport re\n'),
+    ('modules/updater.py',
+     "\treturn 'https://github.com/%s/%s/raw/main/packages/%s' % (get_setting('grnshows.update.username'), get_setting('update.location'), insert)\n",
+     "\treturn '{packages}%s' % insert\n"),
+    ('modules/updater.py',
+     "\turl = 'https://api.github.com/repos/%s/%s/contents/packages' % (get_setting('update.username'), get_setting('update.location'))\n",
+     '\turl = get_location()\n'),
+    ('modules/updater.py',
+     '\tresults = results.json()\n',
+     '\tresults = [{\'name\': name} for name in set(re.findall('
+     + r"""r'href="(plugin\.video\.grnshows-[0-9.]+\.zip)"'""" + ', results.text))]\n'),
+)
+
+# The icon fetchers read the same two settings. They only serve images, but a
+# stored value must not be able to point them anywhere either.
+UPDATE_SETTING_READS = ("get_property('grnshows.update.username')", "get_property('grnshows.update.location')")
+UPDATE_SETTING_ENTRY = re.compile(r"\{'setting_id': 'update\.(?:username|location)'[^\n]*\n")
+UPDATE_SETTING_ROW = re.compile(r'[ \t]*<item>(?:(?!</item>).)*?grnshows\.update\.(?:username|location)'
+                                r'(?:(?!</item>).)*?</item>\r?\n', re.DOTALL)
+
+
+def retire_update_settings(body: str, relative: str, repo_username: str, repo_location: str) -> tuple:
+    """Apply UPDATER_FIXES and remove the update location settings; returns what applied."""
+    applied = set()
+    for suffix, before, after in UPDATER_FIXES:
+        if relative.endswith(suffix):
+            if body.count(before) != 1:
+                raise SystemExit('updater fix for %s no longer applies' % suffix)
+            body = body.replace(before, after.replace('{packages}', repository_url(repo_username, repo_location)
+                                                      + 'zips/plugin.video.grnshows/'))
+            applied.add((suffix, before))
+    for read, value in zip(UPDATE_SETTING_READS, (repo_username, repo_location)):
+        body = body.replace(read, repr(value))
+    if relative.endswith('caches/settings_cache.py'):
+        body, removed = UPDATE_SETTING_ENTRY.subn('', body)
+        if removed != 2:
+            raise SystemExit('expected 2 update location settings in settings_cache.py, found %d' % removed)
+        applied.add(('settings_cache.py', 'update location settings'))
+    if relative.endswith('settings_manager.xml'):
+        body, removed = UPDATE_SETTING_ROW.subn('', body)
+        if removed != 2:
+            raise SystemExit('expected 2 update location rows in settings_manager.xml, found %d' % removed)
+        applied.add(('settings_manager.xml', 'update location rows'))
+    return body, applied
+
+
 def rebrand(text: str, repo_username: str, repo_location: str) -> str:
     for needle, replacement in SUBSTITUTIONS:
         text = text.replace(needle, replacement.format(repo_username=repo_username,
@@ -345,6 +408,7 @@ def port(source: Path, version: str, repo_username: str, repo_location: str, med
     counts = {'text': 0, 'binary': 0, 'skipped': 0}
     tokenised = set()
     fixed = set()
+    updater_fixed = set()
     for path in sorted(source.rglob('*')):
         if not path.is_file() or path.is_symlink():
             continue
@@ -374,6 +438,8 @@ def port(source: Path, version: str, repo_username: str, repo_location: str, med
                 if ICON_BEFORE not in body:
                     raise SystemExit('get_icon changed upstream; update ICON_BEFORE')
                 body = body.replace(ICON_BEFORE, ICON_AFTER)
+            body, retired = retire_update_settings(body, relative.as_posix(), repo_username, repo_location)
+            updater_fixed |= retired
             body, changed = tokenise_credentials(body, relative.as_posix())
             tokenised |= changed
             target.write_text(body, encoding='utf-8', newline='')
@@ -407,6 +473,9 @@ def port(source: Path, version: str, repo_username: str, repo_location: str, med
     if unapplied:
         raise SystemExit('upstream fix never applied for: %s'
                          % ', '.join(sorted(s for s, _ in unapplied)))
+    if len(updater_fixed) != len(UPDATER_FIXES) + 2:
+        raise SystemExit('the updater was not fully pointed at our repository; applied only: %s'
+                         % ', '.join(sorted(s for s, _ in updater_fixed)))
     missing = set(CREDENTIAL_SETTINGS) - tokenised
     if missing:
         raise SystemExit('could not place a credential token for: %s. Upstream changed how '
@@ -498,6 +567,17 @@ def verify(version: str, upstream_icon: bytes) -> list:
         if token not in skin:
             problems.append('%s still compares against the sentinel in the settings window' % setting_id)
 
+    # 6b. nothing reads an update location a user or a stale setting could change,
+    # and the updater never asks GitHub for code
+    for path in sorted((DEST / 'resources').rglob('*')):
+        if path.is_file() and is_text(path):
+            body = path.read_text(encoding='utf-8-sig')
+            if re.search(r'update\.(?:username|location)', body):
+                problems.append('%s still reads the update location settings' % path.relative_to(DEST))
+    updater = (DEST / 'resources/lib/modules/updater.py').read_text(encoding='utf-8')
+    if 'github.com' in updater.replace('.github.io', ''):
+        problems.append('updater.py still fetches from github.com')
+
     # 7. the icon is ours, not the one carried over from upstream
     shipped = (DEST / 'resources/media/addon_icons/grnshows_icon_01.png').read_bytes()
     if shipped == upstream_icon:
@@ -516,10 +596,10 @@ def main():
     parser.add_argument('--media', type=Path,
                         help='packages/media from the source repository, holding the icon set '
                              'that get_icon used to fetch over HTTP')
-    parser.add_argument('--repo-username', default='GRN-Shows',
-                        help='GitHub account the built-in updater pulls from')
-    parser.add_argument('--repo-location', default='grn-shows',
-                        help='GitHub repository the built-in updater pulls from')
+    parser.add_argument('--repo-username', default='IGotCheese',
+                        help='GitHub account that publishes the repository (GitHub Pages)')
+    parser.add_argument('--repo-location', default='GRN-Shows',
+                        help='GitHub repository that publishes the repository (GitHub Pages)')
     args = parser.parse_args()
 
     source = args.source.resolve()

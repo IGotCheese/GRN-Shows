@@ -63,6 +63,13 @@ def main():
                 problems.append("%s ships without a %s - check the GRNSHOWS_* repository secrets"
                                 % (addon.name, label))
 
+        # The add-on's own updater installs whatever version this file names.
+        marker = addon.parent / "grnshowsam_version"
+        offered = marker.read_text(encoding="utf-8").strip() if marker.is_file() else None
+        if offered != addon.stem.split("-", 1)[1]:
+            problems.append("grnshowsam_version says %r but the newest ZIP is %s, so the in-add-on "
+                            "updater would offer the wrong version" % (offered, addon.name))
+
     for folder in ("", "zips", "zips/plugin.video.grnshows", "zips/repository.grnshows"):
         if not (dist / folder / "index.html").is_file():
             problems.append("/%s has no listing, so Kodi cannot browse it" % folder)

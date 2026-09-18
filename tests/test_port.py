@@ -122,6 +122,39 @@ class SkinTests(unittest.TestCase):
                                  'grnshows_diffuse', 'grnshows_flags'})
 
 
+class UpdaterTests(unittest.TestCase):
+    """The built-in updater installs code, so where it looks is fixed in code.
+
+    It used to build its address from two user-editable settings that named a
+    GitHub account nobody owned; registering that name would have put an
+    "update" in front of every install.
+    """
+    def test_updater_reads_our_published_repository(self):
+        updater = (LIB / 'modules' / 'updater.py').read_text(encoding='utf-8')
+        self.assertIn("'https://igotcheese.github.io/GRN-Shows/zips/plugin.video.grnshows/%s'", updater)
+        self.assertNotIn('github.com', updater.replace('.github.io', ''))
+
+    def test_nothing_reads_an_update_location_setting(self):
+        for path in sorted((ADDON / 'resources').rglob('*')):
+            if path.is_file() and path.suffix in ('.py', '.xml'):
+                self.assertNotRegex(path.read_text(encoding='utf-8-sig'), r'update\.(?:username|location)',
+                                    path.relative_to(ADDON).as_posix())
+
+    def test_build_publishes_what_the_updater_reads(self):
+        import tempfile
+        spec = importlib.util.spec_from_file_location('build', ROOT / 'build.py')
+        build = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(build)
+        version = ET.parse(ADDON / 'addon.xml').getroot().attrib['version']
+        with tempfile.TemporaryDirectory() as output:
+            build.build('https://example.test/grn-shows', output)
+            folder = Path(output) / 'zips' / 'plugin.video.grnshows'
+            self.assertEqual((folder / 'grnshowsam_version').read_text(encoding='utf-8'), version)
+            self.assertIn(version, (folder / 'grnshowsam_changes').read_text(encoding='utf-8'))
+            listing = (folder / 'index.html').read_text(encoding='utf-8')
+            self.assertIn('href="plugin.video.grnshows-%s.zip"' % version, listing)
+
+
 class CredentialTests(unittest.TestCase):
     def setUp(self):
         self.registry = (LIB / 'caches' / 'settings_cache.py').read_text(encoding='utf-8-sig')

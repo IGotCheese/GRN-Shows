@@ -90,7 +90,7 @@ def addon_icon_choice(params):
 	import shutil
 	import urllib.request
 	from xml.dom.minidom import parse as mdParse
-	large_image_url = 'https://raw.githubusercontent.com/GRN-Shows/grn-shows/main/packages/addon_icons/%s'
+	large_image_url = 'https://raw.githubusercontent.com/IGotCheese/GRN-Shows/main/packages/addon_icons/%s'
 	small_image_url = large_image_url % '/minis/%s'
 	set_icon = params.get('set_icon')
 	if set_icon: new_name = set_icon

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+import re
 import requests
 import shutil
 from os import path
@@ -9,7 +10,7 @@ from modules import kodi_utils
 logger = kodi_utils.logger
 
 def get_location(insert=''):
-	return 'https://github.com/%s/%s/raw/main/packages/%s' % (get_setting('grnshows.update.username'), get_setting('update.location'), insert)
+	return 'https://igotcheese.github.io/GRN-Shows/zips/plugin.video.grnshows/%s' % insert
 
 def get_versions():
 	try:
@@ -61,12 +62,12 @@ def update_check(action=4):
 
 def rollback_check():
 	current_version = get_versions()[0]
-	url = 'https://api.github.com/repos/%s/%s/contents/packages' % (get_setting('update.username'), get_setting('update.location'))
+	url = get_location()
 	kodi_utils.show_busy_dialog()
 	results = requests.get(url)
 	kodi_utils.hide_busy_dialog()
 	if results.status_code != 200: return kodi_utils.ok_dialog(heading='GRN Shows Updater', text='Error rolling back.[CR]Please install rollback manually')
-	results = results.json()
+	results = [{'name': name} for name in set(re.findall(r'href="(plugin\.video\.grnshows-[0-9.]+\.zip)"', results.text))]
 	results = [i['name'].split('-')[1].replace('.zip', '') for i in results if 'plugin.video.grnshows' in i['name'] \
 				and not i['name'].split('-')[1].replace('.zip', '') == current_version]
 	if not results: return kodi_utils.ok_dialog(heading='GRN Shows Updater', text='No previous versions found.[CR]Please install rollback manually')

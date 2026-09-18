@@ -513,24 +513,6 @@
                           <property name="setting_description">Choose the delay time before GRN Shows checks for updates after Kodi start</property>
                           <onclick>RunPlugin(plugin://plugin.video.grnshows/?mode=settings_manager.set_numeric&amp;setting_id=update.delay)</onclick>
                       </item>
-                      <item>
-                          <visible>Container(2000).HasFocus(10)</visible>
-                          <visible>!String.IsEqual(Window(10000).Property(grnshows.update.action),3)</visible>
-                          <property name="setting_label">    - Github Username</property>
-                          <property name="setting_type">numeric</property>
-                          <property name="setting_value">$INFO[Window(10000).Property(grnshows.update.username)]</property>
-                          <property name="setting_description">Leave this setting as default unless you wsh to update GRN Shows through a different user repository. If you do, enter the Github Username of the new github location</property>
-                          <onclick>RunPlugin(plugin://plugin.video.grnshows/?mode=settings_manager.set_string&amp;setting_id=update.username)</onclick>
-                      </item>
-                      <item>
-                          <visible>Container(2000).HasFocus(10)</visible>
-                          <visible>!String.IsEqual(Window(10000).Property(grnshows.update.action),3)</visible>
-                          <property name="setting_label">    - Github Repo Address</property>
-                          <property name="setting_type">numeric</property>
-                          <property name="setting_value">$INFO[Window(10000).Property(grnshows.update.location)]</property>
-                          <property name="setting_description">Leave this setting as default unless you wsh to update GRN Shows through a different user repository. If you do, enter the Github Repo Address of the new github location</property>
-                          <onclick>RunPlugin(plugin://plugin.video.grnshows/?mode=settings_manager.set_string&amp;setting_id=update.location)</onclick>
-                      </item>
         <!-- Watched Indicators -->
                       <item>
                           <visible>Container(2000).HasFocus(10)</visible>

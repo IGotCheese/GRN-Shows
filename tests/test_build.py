@@ -105,14 +105,38 @@ class BuildTests(unittest.TestCase):
                       packaged, 'with no key the add-on has to see its own "unset" sentinel')
         self.assertNotIn('@@', packaged, 'an unfilled token would be sent to TMDb as a key')
 
-    def test_no_index_html_shadows_the_directory_listing(self):
-        # Kodi browses an HTTP source by parsing the directory listing. An
-        # index.html in the root makes nginx serve that page instead, and the
-        # source appears empty in Kodi.
+    def test_every_directory_is_browsable_by_kodi(self):
+        # Kodi installs from a web source by browsing it like a folder. nginx
+        # produced those listings itself, but GitHub Pages lists nothing and
+        # answers 404, so build.py writes them. This used to assert the
+        # opposite - no index.html - because a human-readable index.html served
+        # in place of nginx's listing left Kodi with an empty source. The
+        # listing written now IS in nginx's format, so it is browsable whether a
+        # server serves it or lists the directory itself.
+        import re
         with tempfile.TemporaryDirectory() as directory:
             output = builder.build('https://shows.example.test/kodi', directory)
-            self.assertFalse((output / 'index.html').exists())
             self.assertTrue((output / 'info.html').is_file())
+            self.assertTrue((output / '.nojekyll').is_file(),
+                            'GitHub Pages would run Jekyll and drop files')
+            for folder in [output, *[p for p in output.rglob('*') if p.is_dir()]]:
+                listing = folder / 'index.html'
+                self.assertTrue(listing.is_file(), '%s has no listing' % folder)
+                anchors = re.findall(r'<a href="([^"]+)">([^<]+)</a>',
+                                     listing.read_text(encoding='utf-8'))
+                shown = {href for href, text in anchors}
+                # Kodi only counts an anchor as an entry when its text matches
+                # its target; anything else is treated as a navigation link.
+                for href, text in anchors:
+                    self.assertEqual(href, text, 'Kodi would skip %r in %s' % (href, folder))
+                for child in folder.iterdir():
+                    if child.name in ('index.html', 'info.html', '.nojekyll'):
+                        continue
+                    expected = child.name + '/' if child.is_dir() else child.name
+                    self.assertIn(expected, shown, '%s is missing from %s' % (expected, folder))
+            # The ZIP the install guide tells people to click must be at the root.
+            root = (output / 'index.html').read_text(encoding='utf-8')
+            self.assertRegex(root, r'href="repository\.grnshows-[0-9.]+\.zip"')
 
     def test_repository_zip_is_also_at_the_source_root(self):
         with tempfile.TemporaryDirectory() as directory:

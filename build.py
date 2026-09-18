@@ -54,6 +54,42 @@ def render_keys(values, template):
     return KEY_TOKEN.sub(lambda match: values[match.group(1)] or UNSET, template)
 
 
+def write_listings(output):
+    """Write an index.html into every directory, in nginx's autoindex format.
+
+    Kodi installs from a web source by BROWSING it like a folder: Add source,
+    then Install from zip file, reads the source root as a directory listing.
+    nginx produced those listings itself (autoindex on). GitHub Pages does not
+    list directories at all and answers 404, which leaves Kodi with an empty
+    source and every new install stuck at the first step, while updates for
+    existing users still work because Kodi fetches addons.xml directly. So the
+    listings are written as files instead.
+
+    The format copies nginx exactly, because Kodi's parser is tuned for it: an
+    anchor only counts as an entry when its text matches its target, which is
+    how Kodi skips navigation links, and a trailing slash marks a directory.
+    nginx here is configured to ignore index files, so these change nothing on
+    a self-hosted server.
+    """
+    for directory in [output, *sorted(p for p in output.rglob('*') if p.is_dir())]:
+        relative = directory.relative_to(output).as_posix()
+        title = '/' if relative == '.' else '/%s/' % relative
+        entries = [] if directory == output else ['../']
+        for child in sorted(directory.iterdir(), key=lambda c: (not c.is_dir(), c.name.lower())):
+            if child.name in ('index.html', 'info.html', '.nojekyll'):
+                continue
+            entries.append(child.name + '/' if child.is_dir() else child.name)
+        rows = ''.join('<a href="%s">%s</a>\n' % (html.escape(e, quote=True), html.escape(e))
+                       for e in entries)
+        (directory / 'index.html').write_text(
+            '<html>\n<head><title>Index of %s</title></head>\n<body>\n'
+            '<h1>Index of %s</h1><hr><pre>%s</pre><hr></body>\n</html>\n'
+            % (html.escape(title), html.escape(title), rows), encoding='utf-8')
+    # GitHub Pages runs Jekyll by default, which drops files and folders it does
+    # not recognise. This marker turns that off so every ZIP is served as-is.
+    (output / '.nojekyll').write_text('', encoding='ascii')
+
+
 def build(base_url, output=None, keys_file=None):
     base_url = base_url.rstrip('/')
     parsed = urlsplit(base_url)
@@ -155,7 +191,8 @@ def build(base_url, output=None, keys_file=None):
     payload = ET.tostring(index, encoding='utf-8', xml_declaration=True)
     (output / 'addons.xml').write_bytes(payload)
     (output / 'addons.xml.md5').write_text(hashlib.md5(payload).hexdigest(), encoding='ascii')
-    # NOT index.html: nginx would serve it for '/' and Kodi would see a web page
+    # The human-readable summary is info.html. index.html in every directory
+    # is the machine listing Kodi browses; see write_listings().
     # instead of the file listing it needs to browse the source.
     (output / 'info.html').write_text(
         '<!doctype html><html><head><meta charset="utf-8"><title>GRN Shows</title></head>'
@@ -163,6 +200,7 @@ def build(base_url, output=None, keys_file=None):
         % (html.escape(base_url), ''.join(links)), encoding='utf-8')
     if not baked:
         raise ValueError('No @@KEY@@ token found in the add-on tree; re-run tools/port_fenlight.py')
+    write_listings(output)
     missing = [field for field in KEY_FIELDS if not keys[field]]
     if missing:
         print('WARNING: no value for %s. Users of this build must enter their own.' % ', '.join(missing))

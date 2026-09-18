@@ -85,6 +85,14 @@ jobs:
           echo "Carried forward $(find dist/zips -name '*.zip' | wc -l) archived ZIPs"
 
       - name: Build the repository
+        env:
+          # The TMDb and Trakt keys are baked into the published add-on so the
+          # catalogue works the moment someone installs it. They live as
+          # repository secrets, never in git; build.py reads GRNSHOWS_* from the
+          # environment.
+          GRNSHOWS_TMDB_API_KEY: ${{ secrets.GRNSHOWS_TMDB_API_KEY }}
+          GRNSHOWS_TRAKT_CLIENT_ID: ${{ secrets.GRNSHOWS_TRAKT_CLIENT_ID }}
+          GRNSHOWS_TRAKT_CLIENT_SECRET: ${{ secrets.GRNSHOWS_TRAKT_CLIENT_SECRET }}
         run: |
           # The Pages URL is derived from the repository itself, so nothing here
           # has to be edited when the owner or the repository name changes.
@@ -98,6 +106,12 @@ jobs:
 
       - name: Check the build advertises what it serves
         run: python3 -m unittest discover -s tests -q
+
+      - name: Refuse a build users could not use
+        # Both failures this catches are silent otherwise: a build with no keys
+        # succeeds and ships an add-on with a dead catalogue, and a build Kodi
+        # cannot browse deploys fine while every new install stops at step one.
+        run: python3 tools/verify_build.py dist
 
       - name: Post the release
         id: release

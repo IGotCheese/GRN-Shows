@@ -79,10 +79,17 @@ class LiveRepositoryTests(unittest.TestCase):
             self.assertEqual(packaged.attrib["version"], version,
                              "addons.xml advertises a version the ZIP does not contain")
             registry = archive.read("plugin.video.grnshows/resources/lib/caches/settings_cache.py").decode()
+        # An unsupplied key is written as 'empty_setting', never ''. This used to
+        # look only for the empty string and so passed a build with no keys.
         for setting_id, label in (("tmdb_api", "TMDb key"), ("trakt.client", "Trakt application"),
                                   ("trakt.secret", "Trakt secret")):
-            self.assertNotIn("{'setting_id': '%s', 'setting_type': 'string', 'setting_default': ''}" % setting_id,
-                             registry, "published build ships no %s" % label)
+            match = re.search(r"\{'setting_id': '%s', 'setting_type': 'string', "
+                              r"'setting_default': '([^']*)'\}" % re.escape(setting_id), registry)
+            self.assertIsNotNone(match, "published build has no %s setting" % label)
+            self.assertNotIn(match.group(1), ("", "empty_setting"),
+                             "published build ships no %s" % label)
+            self.assertFalse(match.group(1).startswith("@@"),
+                             "published build ships an unrendered %s token" % label)
 
     def test_every_advertised_addon_is_downloadable(self):
         status, addons_xml = get(BASE + "/addons.xml")

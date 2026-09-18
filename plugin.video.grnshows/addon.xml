@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.grnshows" name="GRN Shows" provider-name="GRN" version="3.2.0">
+<addon id="plugin.video.grnshows" name="GRN Shows" provider-name="GRN" version="3.2.1">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
         <import addon="script.module.requests" version="2.19.1"/>
@@ -25,6 +25,9 @@
             <icon>resources/media/addon_icons/grnshows_icon_01.png</icon>
             <fanart>resources/media/grnshows_fanart_01.jpg</fanart>
         </assets>
-        <news>See the Changelog under Tools for the latest changes.</news>
+        <news>v3.2.1
+- Updates now come only from the GRN Shows repository
+- Make the GitHub-hosted repository installable, with a working catalogue
+- Publish a new version whenever the add-on changes</news>
     </extension>
 </addon>
